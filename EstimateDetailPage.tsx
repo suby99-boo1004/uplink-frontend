@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../../lib/auth";
 import { http } from "../../api/http";
 
 type SectionType = "MATERIAL" | "LABOR" | "EXPENSE" | "OVERHEAD" | "PROFIT" | "MANUAL";
@@ -50,22 +51,44 @@ function sectionLabel(t: SectionType) {
   if (t === "PROFIT") return "이윤";
   return "수동";
 }
-
 function ymd(iso?: string) {
   if (!iso) return "-";
   return iso.split("T")[0];
 }
-
 function money(n?: number | null) {
   return Number(n || 0).toLocaleString();
+}
+
+function readPrevChain(id: number): any[] {
+  try {
+    const raw = sessionStorage.getItem(`estimate_prev_chain_${id}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 export default function EstimateDetailPage() {
   const { estimateId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth() as any;
+  const roleId: number | null = (user as any)?.role_id ?? null;
+  const roleName: string = String((user as any)?.role ?? (user as any)?.role_name ?? (user as any)?.roleName ?? "").toLowerCase();
+  const canViewPrev = Boolean(user) && (
+    [1, 2, 3].includes(Number(roleId)) ||
+    ["admin", "administrator", "manager", "operator", "employee", "staff", "company"].includes(roleName) ||
+    ["관리자", "운영자", "회사직원", "직원"].includes(String((user as any)?.role_name ?? (user as any)?.roleName ?? ""))
+  );
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<EstimateDetail | null>(null);
+
+  // ✅ 구버전(최근 10개) – sessionStorage 기반
+  const [prevChain, setPrevChain] = useState<any[]>([]);
+  const [prevOpen, setPrevOpen] = useState(false);
 
   useEffect(() => {
     const id = Number(estimateId);
@@ -74,23 +97,30 @@ export default function EstimateDetailPage() {
       setLoading(false);
       return;
     }
-    let mounted = true;
 
+    let mounted = true;
     (async () => {
       try {
         setLoading(true);
         setError(null);
 
         // ✅ 공통 http(axios) 사용: Authorization / credentials 처리가 프로젝트 표준대로 적용됨
-        const res = await http.get<EstimateDetail>(`/estimates/${id}`);
+        const res = await http.get(`/estimates/${id}`);
         if (!mounted) return;
+
         setData(res.data);
+        // ✅ 상세 로드 후, 해당 id에 매핑된 구버전 체인 읽기
+        setPrevChain(readPrevChain(id));
       } catch (e: any) {
         if (!mounted) return;
         const status = e?.response?.status;
         const detailMsg = e?.response?.data?.detail;
         if (status === 401) {
-          setError(`상세 조회 실패: 401 ${detailMsg ? JSON.stringify(e.response.data) : "인증이 필요합니다."}`);
+          setError(
+            `상세 조회 실패: 401 ${
+              detailMsg ? JSON.stringify(e.response.data) : "인증이 필요합니다."
+            }`
+          );
         } else {
           setError(e?.message ?? "알 수 없는 오류");
         }
@@ -106,18 +136,21 @@ export default function EstimateDetailPage() {
   }, [estimateId]);
 
   const sections = useMemo(() => {
-    const s = data?.sections ?? [];
-    return [...s].sort((a, b) => (a.section_order ?? 0) - (b.section_order ?? 0));
+    const s = (data as any)?.sections ?? [];
+    return [...s].sort((a: any, b: any) => (a.section_order ?? 0) - (b.section_order ?? 0));
   }, [data]);
 
   return (
     <div style={{ padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#F8FAFC" }}>견적서 상세</h2>
-        <span style={{ fontSize: 12, color: "#94A3B8" }}>{data ? `#${data.id}` : ""}</span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 900 }}>견적서 상세</div>
+          <div style={{ fontSize: 12, color: "#94A3B8" }}>{data ? `#${data.id}` : ""}</div>
+        </div>
+
+        {/* ✅ 오른쪽 상단 버튼 순서: 목록으로 → 견적서 수정 → PDF/프린트 */}
+        <div style={{ display: "flex", gap: 8 }}>
           <button
-            type="button"
             onClick={() => navigate("/estimates")}
             style={{
               fontSize: 12,
@@ -134,10 +167,8 @@ export default function EstimateDetailPage() {
           </button>
 
           <button
-            type="button"
             onClick={() => {
               if (!data?.id) return;
-              // 수정 화면(라우트)은 프로젝트 기준에 맞춰 연결하세요.
               navigate(`/estimates/${data.id}/edit`);
             }}
             disabled={!data?.id}
@@ -155,8 +186,8 @@ export default function EstimateDetailPage() {
           >
             견적서 수정
           </button>
+
           <button
-            type="button"
             onClick={() => window.print()}
             style={{
               fontSize: 12,
@@ -174,89 +205,74 @@ export default function EstimateDetailPage() {
         </div>
       </div>
 
-      {loading ? (
-        <div style={{ color: "#CBD5E1" }}>불러오는 중...</div>
-      ) : error ? (
-        <div style={{ color: "#FCA5A5", fontWeight: 900 }}>{error}</div>
-      ) : !data ? (
-        <div style={{ color: "#CBD5E1" }}>데이터가 없습니다.</div>
-      ) : (
-        <div
-          style={{
-            border: "1px solid #1F2937",
-            borderRadius: 14,
-            overflow: "hidden",
-            background: "linear-gradient(180deg, rgba(11,18,32,0.92) 0%, rgba(5,8,20,0.92) 100%)",
-            boxShadow: "0 18px 60px rgba(0,0,0,0.35)",
-          }}
-        >
-          <div style={{ padding: 14, borderBottom: "1px solid #1F2937", display: "grid", gap: 8 }}>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
-              <div style={{ fontSize: 14, fontWeight: 900, color: "#F8FAFC" }}>{data.project_name || "프로젝트"}</div>
-              <div style={{ fontSize: 12, color: "#93C5FD" }}>수신: {data.receiver_name || "-"}</div>
-              <div style={{ fontSize: 12, color: "#94A3B8" }}>작성자: {data.author_name || "-"}</div>
-              <div style={{ fontSize: 12, color: "#94A3B8" }}>작성일: {ymd(data.issue_date)}</div>
-            </div>
-
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ color: "#CBD5E1", fontSize: 12 }}>
-                합계(공급가): <span style={{ fontWeight: 900, color: "#F8FAFC" }}>{money(data.subtotal)}원</span>
+      <div style={{ marginTop: 12 }}>
+        {loading ? (
+          <div style={{ color: "#CBD5E1", padding: 12 }}>불러오는 중...</div>
+        ) : error ? (
+          <div style={{ color: "#FCA5A5", padding: 12 }}>{error}</div>
+        ) : !data ? (
+          <div style={{ color: "#CBD5E1", padding: 12 }}>데이터가 없습니다.</div>
+        ) : (
+          <div>
+            <div style={{ marginBottom: 12, padding: 12, borderRadius: 14, border: "1px solid #1F2937" }}>
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>{data.project_name || "프로젝트"}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 13, color: "#E2E8F0" }}>
+                <div>수신: {data.receiver_name || "-"}</div>
+                <div>작성자: {data.author_name || "-"}</div>
+                <div>작성일: {ymd(data.issue_date)}</div>
               </div>
-              <div style={{ color: "#CBD5E1", fontSize: 12 }}>
-                부가세: <span style={{ fontWeight: 900, color: "#F8FAFC" }}>{money(data.tax)}원</span>
-              </div>
-              <div style={{ color: "#CBD5E1", fontSize: 12 }}>
-                총계: <span style={{ fontWeight: 900, color: "#F8FAFC" }}>{money(data.total)}원</span>
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 12, fontSize: 13 }}>
+                <div>합계(공급가): <b>{money(data.subtotal)}원</b></div>
+                <div>부가세: <b>{money(data.tax)}원</b></div>
+                <div>총계: <b>{money(data.total)}원</b></div>
               </div>
             </div>
-          </div>
 
-          <div style={{ padding: 14 }}>
             {sections.length === 0 ? (
-              <div style={{ color: "#CBD5E1" }}>섹션/항목이 없습니다.</div>
+              <div style={{ color: "#CBD5E1", padding: 12 }}>섹션/항목이 없습니다.</div>
             ) : (
-              sections.map((sec, idx) => (
-                <div key={`${sec.section_order}-${sec.section_type}`} style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: "#93C5FD", marginBottom: 8 }}>
+              sections.map((sec: any, idx: number) => (
+                <div key={`${sec.section_type}-${sec.section_order}-${idx}`} style={{ marginBottom: 16 }}>
+                  <div style={{ fontWeight: 900, marginBottom: 8 }}>
                     {idx + 1}. {sectionLabel(sec.section_type)}
                   </div>
 
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
-                      <tr style={{ background: "rgba(15,23,42,0.75)", color: "#F8FAFC" }}>
-                        <th style={{ padding: "8px 10px", textAlign: "left", width: 60 }}>번호</th>
-                        <th style={{ padding: "8px 10px", textAlign: "left", width: "30%" }}>항목</th>
-                        <th style={{ padding: "8px 10px", textAlign: "left", width: "30%" }}>규격</th>
-                        <th style={{ padding: "8px 10px", textAlign: "left", width: 80 }}>단위</th>
-                        <th style={{ padding: "8px 10px", textAlign: "right", width: 90 }}>수량</th>
-                        <th style={{ padding: "8px 10px", textAlign: "right", width: 110 }}>단가</th>
-                        <th style={{ padding: "8px 10px", textAlign: "right", width: 120 }}>금액</th>
+                      <tr style={{ background: "rgba(148,163,184,0.12)" }}>
+                        <th style={{ textAlign: "left", padding: 8, fontSize: 12, color: "#E2E8F0" }}>번호</th>
+                        <th style={{ textAlign: "left", padding: 8, fontSize: 12, color: "#E2E8F0" }}>항목</th>
+                        <th style={{ textAlign: "left", padding: 8, fontSize: 12, color: "#E2E8F0" }}>규격</th>
+                        <th style={{ textAlign: "left", padding: 8, fontSize: 12, color: "#E2E8F0" }}>단위</th>
+                        <th style={{ textAlign: "right", padding: 8, fontSize: 12, color: "#E2E8F0" }}>수량</th>
+                        <th style={{ textAlign: "right", padding: 8, fontSize: 12, color: "#E2E8F0" }}>단가</th>
+                        <th style={{ textAlign: "right", padding: 8, fontSize: 12, color: "#E2E8F0" }}>금액</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(sec.lines || [])
                         .slice()
-                        .sort((a, b) => (a.line_order ?? 0) - (b.line_order ?? 0))
-                        .map((ln, i) => (
-                          <tr key={`${i}-${ln.name}`} style={{ borderTop: "1px solid rgba(148,163,184,0.15)" }}>
-                            <td style={{ padding: "8px 10px", color: "#94A3B8" }}>{ln.line_order ?? i + 1}</td>
-                            <td style={{ padding: "8px 10px", color: "#F8FAFC", fontWeight: 800 }}>{ln.name}</td>
-                            <td style={{ padding: "8px 10px", color: "#E2E8F0" }}>{ln.spec || ""}</td>
-                            <td style={{ padding: "8px 10px", color: "#E2E8F0" }}>{ln.unit || ""}</td>
-                            <td style={{ padding: "8px 10px", textAlign: "right", color: "#E2E8F0" }}>{ln.qty ?? ""}</td>
-                            <td style={{ padding: "8px 10px", textAlign: "right", color: "#E2E8F0" }}>
+                        .sort((a: any, b: any) => (a.line_order ?? 0) - (b.line_order ?? 0))
+                        .map((ln: any, i: number) => (
+                          <tr key={`${ln.id ?? i}`} style={{ borderBottom: "1px solid #1F2937" }}>
+                            <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1" }}>{ln.line_order ?? i + 1}</td>
+                            <td style={{ padding: 8, fontSize: 12, color: "#F8FAFC" }}>{ln.name}</td>
+                            <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1" }}>{ln.spec || ""}</td>
+                            <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1" }}>{ln.unit || ""}</td>
+                            <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1", textAlign: "right" }}>{ln.qty ?? ""}</td>
+                            <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1", textAlign: "right" }}>
                               {ln.unit_price != null ? money(ln.unit_price) : ""}
                             </td>
-                            <td style={{ padding: "8px 10px", textAlign: "right", color: "#F8FAFC", fontWeight: 900 }}>
+                            <td style={{ padding: 8, fontSize: 12, color: "#F8FAFC", textAlign: "right" }}>
                               {money(ln.amount)}
                             </td>
                           </tr>
                         ))}
-                      <tr style={{ borderTop: "1px solid rgba(148,163,184,0.25)" }}>
-                        <td colSpan={6} style={{ padding: "8px 10px", textAlign: "right", color: "#94A3B8", fontWeight: 900 }}>
+                      <tr>
+                        <td colSpan={6} style={{ padding: 8, fontSize: 12, color: "#CBD5E1", textAlign: "right" }}>
                           소계
                         </td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: "#F8FAFC", fontWeight: 900 }}>
+                        <td style={{ padding: 8, fontSize: 12, color: "#F8FAFC", textAlign: "right", fontWeight: 900 }}>
                           {money(sec.subtotal ?? 0)}
                         </td>
                       </tr>
@@ -265,9 +281,147 @@ export default function EstimateDetailPage() {
                 </div>
               ))
             )}
+
+            {/* ✅ 이전 견적서(최근 10개) – 하단 표시 */}
+            {canViewPrev && prevChain.length > 0 && (
+              <div style={{ marginTop: 18, paddingTop: 12, borderTop: "1px solid #1F2937" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 8,
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>이전 견적서(최근 10개)</div>
+                  <button
+                    onClick={() => setPrevOpen((v) => !v)}
+                    style={{
+                      fontSize: 12,
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      border: "1px solid #334155",
+                      background: "rgba(15,23,42,0.35)",
+                      color: "#E2E8F0",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {prevOpen ? "접기 ▲" : "보기 ▼"}
+                  </button>
+                </div>
+
+                {prevOpen && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {prevChain.map((p: any, idx: number) => (
+                      <details key={idx} style={{ border: "1px solid #334155", borderRadius: 14, overflow: "hidden" }}>
+                        <summary
+                          style={{
+                            listStyle: "none",
+                            cursor: "pointer",
+                            padding: 12,
+                            background: "rgba(251,191,36,0.08)",
+                            color: "#F8FAFC",
+                            fontWeight: 900,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 10,
+                          }}
+                        >
+                          <span>
+                            구버전 #{p?.id ?? "-"}{" "}
+                            <span
+                              style={{
+                                marginLeft: 8,
+                                fontSize: 11,
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                border: "1px solid rgba(251,191,36,0.35)",
+                                background: "rgba(251,191,36,0.10)",
+                                color: "#FDE68A",
+                              }}
+                            >
+                              읽기 전용
+                            </span>
+                          </span>
+                          <span style={{ fontSize: 12, color: "#E2E8F0" }}>
+                            {p?.total != null ? `${money(p.total)}원` : ""}
+                          </span>
+                        </summary>
+
+                        <div style={{ padding: 12, background: "rgba(15,23,42,0.25)" }}>
+                          <div style={{ fontSize: 12, color: "#CBD5E1", display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+                            <div>프로젝트: {p?.project_name || "-"}</div>
+                            <div>수신: {p?.receiver_name || "-"}</div>
+                            <div>작성자: {p?.author_name || "-"}</div>
+                            <div>작성일: {ymd(p?.issue_date)}</div>
+                            <div>합계: <b style={{ color: "#F8FAFC" }}>{money(p?.subtotal)}원</b></div>
+                            <div>부가세: <b style={{ color: "#F8FAFC" }}>{money(p?.tax)}원</b></div>
+                            <div>총계: <b style={{ color: "#F8FAFC" }}>{money(p?.total)}원</b></div>
+                          </div>
+
+                          {Array.isArray(p?.sections) && p.sections.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                              {[...p.sections]
+                                .sort((a: any, b: any) => (a.section_order ?? 0) - (b.section_order ?? 0))
+                                .map((sec: any, sidx: number) => (
+                                  <div key={`${sec.section_type}-${sec.section_order}-${sidx}`}>
+                                    <div style={{ fontWeight: 900, marginBottom: 6, color: "#F8FAFC" }}>
+                                      {sidx + 1}. {sectionLabel(sec.section_type)}
+                                      <span style={{ marginLeft: 8, fontSize: 12, color: "#CBD5E1" }}>
+                                        (소계 {money(sec?.subtotal)}원)
+                                      </span>
+                                    </div>
+
+                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                      <thead>
+                                        <tr style={{ background: "rgba(148,163,184,0.10)" }}>
+                                          <th style={{ textAlign: "left", padding: 8, fontSize: 12, color: "#E2E8F0" }}>번호</th>
+                                          <th style={{ textAlign: "left", padding: 8, fontSize: 12, color: "#E2E8F0" }}>항목</th>
+                                          <th style={{ textAlign: "left", padding: 8, fontSize: 12, color: "#E2E8F0" }}>규격</th>
+                                          <th style={{ textAlign: "left", padding: 8, fontSize: 12, color: "#E2E8F0" }}>단위</th>
+                                          <th style={{ textAlign: "right", padding: 8, fontSize: 12, color: "#E2E8F0" }}>수량</th>
+                                          <th style={{ textAlign: "right", padding: 8, fontSize: 12, color: "#E2E8F0" }}>단가</th>
+                                          <th style={{ textAlign: "right", padding: 8, fontSize: 12, color: "#E2E8F0" }}>금액</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {([...((sec?.lines) || [])] as any[])
+                                          .sort((a: any, b: any) => (a.line_order ?? 0) - (b.line_order ?? 0))
+                                          .map((ln: any, i: number) => (
+                                            <tr key={`${ln.id ?? i}`} style={{ borderBottom: "1px solid #1F2937" }}>
+                                              <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1" }}>{ln.line_order ?? i + 1}</td>
+                                              <td style={{ padding: 8, fontSize: 12, color: "#F8FAFC" }}>{ln.name}</td>
+                                              <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1" }}>{ln.spec || ""}</td>
+                                              <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1" }}>{ln.unit || ""}</td>
+                                              <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1", textAlign: "right" }}>{ln.qty ?? ""}</td>
+                                              <td style={{ padding: 8, fontSize: 12, color: "#CBD5E1", textAlign: "right" }}>
+                                                {ln.unit_price != null ? money(ln.unit_price) : ""}
+                                              </td>
+                                              <td style={{ padding: 8, fontSize: 12, color: "#F8FAFC", textAlign: "right" }}>
+                                                {money(ln.amount)}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 12, color: "#CBD5E1" }}>구버전 내역(섹션/라인)이 없습니다.</div>
+                          )}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
