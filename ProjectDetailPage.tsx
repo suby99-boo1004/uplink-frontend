@@ -915,6 +915,23 @@ async function saveAdminInfo() {
     }
   }
 
+  // ✅ 프로젝트 상세: "견적서 보기" → 해당 프로젝트의 견적서 상세로 이동
+  async function goToEstimate() {
+    if (!pid) return;
+    try {
+      const res = await api(`/api/estimates`);
+      const data: any = (res as any)?.data ?? res;
+      const list: any[] = Array.isArray(data) ? data : data?.items ?? data?.rows ?? [];
+      const found = list.find((x: any) => Number(x?.project_id) === Number(pid));
+      const eid = Number(found?.id || 0);
+      if (!eid) return alert("해당 프로젝트의 견적서가 없습니다.");
+      nav(`/estimates/${eid}`);
+    } catch (e: any) {
+      alert(e?.message || "견적서 조회 실패");
+    }
+  }
+
+
   async function submitComplete() {
     if (!pid) return;
     if (!canChangeStatus) return;
@@ -1058,7 +1075,7 @@ async function saveAdminInfo() {
             </button>
           )}
           {detail && (
-            <button className="btn" onClick={() => nav(`/quotes?project_id=${pid}`)}>
+            <button className="btn" onClick={goToEstimate}>
               견적서 보기
             </button>
           )}
