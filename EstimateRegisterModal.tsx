@@ -24,6 +24,8 @@ export type DraftLine = {
 
   source_type?: "PRODUCT" | "LABOR_ITEM" | "NONE";
   source_id?: number | null;
+  // 제품 선택 시 원본 제품 데이터를 보관(단가종류 변경 시 단가 재계산용). payload에는 포함되지 않음
+  source_product?: any;
   price_type?: PriceType | null;
 };
 
@@ -89,12 +91,40 @@ function priceLabel(p: PriceType) {
 function getProductPrice(prod: any, pt: PriceType) {
   // 제품(자재관리)의 실제 컬럼명은 프로젝트에 따라 다를 수 있어 여러 후보를 순서대로 탐색
   const pick = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-  if (pt === "DESIGN") return pick(prod?.price_design ?? prod?.price_plan ?? prod?.price1 ?? 0);
-  if (pt === "CONSUMER") return pick(prod?.price_consumer ?? prod?.price_repair ?? prod?.price2 ?? 0);
-  if (pt === "SUPPLY") return pick(prod?.price_supply ?? prod?.price_delivery ?? prod?.price3 ?? 0);
+
+  if (pt === "DESIGN") {
+    return pick(
+      prod?.price_design ??
+        prod?.design_price ??
+        prod?.price_plan ??
+        prod?.plan_price ??
+        prod?.price1 ??
+        0
+    );
+  }
+
+  if (pt === "CONSUMER") {
+	  return pick(
+  prod?.price_small ?? 
+  prod?.price_smal ?? 
+  prod?.price_consumer ?? 
+  prod?.price_repair ?? 
+  prod?.price2 ?? 0);
+  }
+
+  if (pt === "SUPPLY") {
+    return pick(
+      prod?.price_supply ??
+        prod?.supply_price ??
+        prod?.price_delivery ??
+        prod?.delivery_price ??
+        prod?.price3 ??
+        0
+    );
+  }
+
   return 0;
 }
-
 type ProductPickModalProps = {
   open: boolean;
   onClose: () => void;
@@ -568,7 +598,7 @@ export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
     setTargetSectionId(null);
     if (!secId) return;
 
-    const pt: PriceType = "SUPPLY"; // 기본: 납품가
+    const pt: PriceType = "DESIGN"; // 기본: 설계가
     const price = getProductPrice(p as any, pt) || Number((p as any).price_delivery || 0);
 
     addLine(secId, {
@@ -580,6 +610,7 @@ export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
       calc_mode: "NORMAL",
       source_type: "PRODUCT",
       source_id: Number((p as any).id || 0),
+      source_product: p as any,
       price_type: pt,
     });
   }
@@ -897,9 +928,18 @@ export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
                               <div style={{ marginTop: 6, display: "flex", gap: 6, alignItems: "center" }}>
                                 <span style={{ fontSize: 11, color: "#94A3B8" }}>단가종류</span>
                                 <select
-                                  value={l.price_type || "SUPPLY"}
+                                  value={l.price_type || "DESIGN"}
                                   disabled={saving}
-                                  onChange={(e) => updateLine(sec.id, l.id, { price_type: e.target.value as PriceType })}
+                                  onChange={(e) => {
+                                    const nextPt = e.target.value as PriceType;
+                                    // MANUAL은 단가를 사용자가 직접 입력하므로 자동 변경하지 않음
+                                    if (nextPt === "MANUAL") {
+                                      updateLine(sec.id, l.id, { price_type: nextPt });
+                                      return;
+                                    }
+                                    const nextPrice = getProductPrice((l as any).source_product, nextPt);
+                                    updateLine(sec.id, l.id, { price_type: nextPt, unit_price: nextPrice });
+                                  }}
                                   style={{
                                     fontSize: 11,
                                     padding: "6px 8px",
