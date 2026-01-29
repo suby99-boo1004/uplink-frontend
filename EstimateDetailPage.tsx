@@ -52,7 +52,13 @@ function sectionLabel(t: SectionType) {
 }
 function ymd(iso?: string) {
   if (!iso) return "-";
-  return iso.split("T")[0];
+  const safe = String(iso).replace(" ", "T");
+  const [dRaw, tRaw] = safe.split("T");
+  const d = dRaw || "";
+  const hhmm = (tRaw || "").slice(0, 5);
+  const parts = d.split("-");
+  const ymdOnly = parts.length === 3 ? `${parts[0]}-${parts[1]}-${parts[2]}` : d;
+  return hhmm ? `${ymdOnly} ${hhmm}` : ymdOnly;
 }
 function money(n?: number | null) {
   return Number(n || 0).toLocaleString();
@@ -215,7 +221,7 @@ export default function EstimateDetailPage() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, fontSize: 13, color: "#E2E8F0" }}>
                 <div>수신: {data.receiver_name || "-"}</div>
                 <div>작성자: {data.author_name || "-"}</div>
-                <div>작성일: {ymd(data.issue_date)}</div>
+                <div>작성일: {ymd((data as any).issue_date || (data as any).created_at || (data as any).createdAt || (data as any).updated_at || (data as any).updatedAt)}</div>
               </div>
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 12, fontSize: 13 }}>
                 <div>합계(공급가): <b>{money(data.subtotal)}원</b></div>
@@ -351,7 +357,7 @@ export default function EstimateDetailPage() {
                             <div>프로젝트: {p?.project_name || "-"}</div>
                             <div>수신: {p?.receiver_name || "-"}</div>
                             <div>작성자: {p?.author_name || "-"}</div>
-                            <div>작성일: {ymd(p?.issue_date)}</div>
+                            <div>작성일: {ymd((p as any)?.issue_date || (p as any)?.created_at || (p as any)?.createdAt || (p as any)?.updated_at || (p as any)?.updatedAt)}</div>
                             <div>합계: <b style={{ color: "#F8FAFC" }}>{money(p?.subtotal)}원</b></div>
                             <div>부가세: <b style={{ color: "#F8FAFC" }}>{money(p?.tax)}원</b></div>
                             <div>총계: <b style={{ color: "#F8FAFC" }}>{money(p?.total)}원</b></div>

@@ -31,12 +31,15 @@ function statusLabel(s: EstimateStatus) {
   return "사업취소";
 }
 
-function ymdSpace(iso?: string) {
-  if (!iso) return "";
-  const d = iso.split("T")[0]; // YYYY-MM-DD
+function fmtParts(iso?: string) {
+  if (!iso) return { date: "", time: "" };
+  const safe = String(iso).replace(" ", "T");
+  const [dRaw, tRaw] = safe.split("T");
+  const d = dRaw || "";
+  const hhmm = (tRaw || "").slice(0, 5);
   const parts = d.split("-");
-  if (parts.length !== 3) return d;
-  return `${parts[0]} ${parts[1]} ${parts[2]}`; // YYYY MM DD
+  const date = parts.length === 3 ? `${parts[0]}-${parts[1]}-${parts[2]}` : d;
+  return { date, time: hhmm };
 }
 
 export default function EstimatesPage() {
@@ -326,7 +329,8 @@ const availableYears = useMemo(() => {
               filtered.map((r) => (
                 <tr key={r.id} onClick={() => navigate(`/estimates/${r.id}`)} style={{ borderTop: "1px solid rgba(148,163,184,0.15)", cursor: "pointer" }}>
                   <td style={{ padding: "10px 12px", color: "#94A3B8", width: 140 }}>
-                    {ymdSpace(r.createdAt || r.updatedAt)}
+                    <div>{fmtParts(r.createdAt || r.updatedAt).date}</div>
+                    <div style={{ fontSize: 12, opacity: 0.8 }}>{fmtParts(r.createdAt || r.updatedAt).time}</div>
                   </td>
                   <td style={{ padding: "10px 12px", fontWeight: 800, color: "#F8FAFC", width: "55%" }}>{r.title}</td>
                   <td style={{ padding: "10px 12px", color: "#E2E8F0", width: "15%" }}>{r.receiver}</td>
