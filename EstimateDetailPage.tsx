@@ -132,6 +132,29 @@ export default function EstimateDetailPage() {
           >
             목록으로
           </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!data?.id) return;
+              // 수정 화면(라우트)은 프로젝트 기준에 맞춰 연결하세요.
+              navigate(`/estimates/${data.id}/edit`);
+            }}
+            disabled={!data?.id}
+            style={{
+              fontSize: 12,
+              padding: "10px 12px",
+              borderRadius: 12,
+              border: "1px solid #334155",
+              background: "rgba(15,23,42,0.4)",
+              color: "#F8FAFC",
+              fontWeight: 900,
+              cursor: data?.id ? "pointer" : "not-allowed",
+              opacity: data?.id ? 1 : 0.6,
+            }}
+          >
+            견적서 수정
+          </button>
           <button
             type="button"
             onClick={() => window.print()}
