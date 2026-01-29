@@ -984,7 +984,8 @@ async function saveAdminInfo() {
     setCancelSubmitting(true);
     try {
       await api(`/api/projects/${pid}/cancel`, { method: "POST", body: JSON.stringify({ reason }) });
-      setShowCancel(false);
+      
+      await syncEstimateBusinessState("CANCELED");setShowCancel(false);
       setCancelReason("");
       // ✅ 상세페이지에 취소 사유를 표기해야 하므로 목록 이동 대신 재조회
       await load();
