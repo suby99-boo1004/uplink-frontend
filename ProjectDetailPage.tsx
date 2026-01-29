@@ -168,6 +168,25 @@ function ProjectDetailPage() {
   const { projectId } = useParams();
 
   const pid = useMemo(() => Number(projectId || 0), [projectId]);
+  // ✅ 프로젝트 상세: "견적서 보기" → 해당 프로젝트의 견적서 상세로 이동 (1프로젝트=1견적)
+  const goToEstimate = async () => {
+    if (!pid) return;
+    try {
+      const res: any = await api("/api/estimates");
+      const data: any = res?.data ?? res;
+      const list: any[] = Array.isArray(data) ? data : data?.items ?? data?.rows ?? [];
+      const found = list.find((x: any) => Number(x?.project_id) === Number(pid));
+      if (!found?.id) {
+        alert("해당 프로젝트의 견적서가 없습니다.");
+        return;
+      }
+      nav(`/estimates/${found.id}`);
+    } catch (e: any) {
+      console.error(e);
+      alert("견적서 조회에 실패했습니다.");
+    }
+  };
+
   const [adminAckAt, setAdminAckAt] = useState<number>(0);
 
   const roleId: number | null = (user as any)?.role_id ?? null;
@@ -1036,7 +1055,7 @@ async function saveAdminInfo() {
             </button>
           )}
           {detail && (
-            <button className="btn" onClick={() => nav(`/quotes?project_id=${pid}`)}>
+            <button className="btn" onClick={goToEstimate}>
               견적서 보기
             </button>
           )}
