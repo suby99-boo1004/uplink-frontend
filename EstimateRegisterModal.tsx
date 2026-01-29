@@ -297,6 +297,9 @@ function ProductPickModal({ open, onClose, onPick }: ProductPickModalProps) {
 type Props = {
   saving: boolean;
   onSubmit: (payload: DraftEstimateCreatePayload) => void;
+  mode?: "create" | "update";
+  initial?: DraftEstimateCreatePayload | null;
+  submitLabel?: string;
 };
 
 function compute(sections: DraftSection[]) {
@@ -369,16 +372,41 @@ function compute(sections: DraftSection[]) {
   return { sections: clone, subtotalByType, subtotal, tax, total };
 }
 
-export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
+export default function EstimateRegisterModal({ saving, onSubmit, mode = "create", initial = null, submitLabel }: Props) {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [projectOptions, setProjectOptions] = useState<DraftProject[]>([]);
   const [project, setProject] = useState<DraftProject | null>(null);
 
-  const [title, setTitle] = useState("");
-  const [receiverName, setReceiverName] = useState("");
-  const [memo, setMemo] = useState("");
+  const [title, setTitle] = useState(() => (initial?.title ? String(initial.title) : ""));
+  const [receiverName, setReceiverName] = useState(() => (initial?.receiver_name ? String(initial.receiver_name) : ""));
+  const [memo, setMemo] = useState(() => (initial?.memo ? String(initial.memo) : ""));
 
-  const [sections, setSections] = useState<DraftSection[]>([]);
+  const [sections, setSections] = useState<DraftSection[]>(() => {
+    if (!initial?.sections?.length) return [];
+    return initial.sections.map((s) => ({
+      id: nextId("sec"),
+      section_order: s.section_order,
+      section_type: s.section_type,
+      title: s.title,
+      lines: (s.lines || []).map((ln) => ({
+        id: nextId("ln"),
+        line_order: Number(ln.line_order ?? 1),
+        name: ln.name,
+        spec: ln.spec ?? "",
+        unit: ln.unit ?? "",
+        qty: Number(ln.qty ?? 0),
+        unit_price: ln.unit_price ?? null,
+        amount: ln.amount ?? null,
+        remark: ln.remark ?? "",
+        calc_mode: ln.calc_mode,
+        base_section_type: ln.base_section_type ?? null,
+        formula: ln.formula ?? null,
+        source_type: ln.source_type ?? "NONE",
+        source_id: ln.source_id ?? null,
+        price_type: ln.price_type ?? null,
+      })),
+    }));
+  });
   const [productPickOpen, setProductPickOpen] = useState(false);
   const [targetSectionId, setTargetSectionId] = useState<string | null>(null);
 
@@ -389,11 +417,20 @@ export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
   }, []);
 
   useEffect(() => {
-    // 프로젝트 선택 시 기본값 채움
+    if (mode !== "update") return;
+    const pid = Number(initial?.project_id || 0);
+    if (!pid || !projectOptions.length) return;
+    const found = projectOptions.find((p) => Number(p.id) === pid) || null;
+    if (found) setProject(found);
+  }, [mode, initial, projectOptions]);
+
+  useEffect(() => {
+    // 프로젝트 선택 시 기본값 채움(신규 등록에서만)
+    if (mode !== "create") return;
     if (!project) return;
     if (!title.trim()) setTitle(project.name);
     if (!receiverName.trim()) setReceiverName(project.clientName || "");
-  }, [project]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadProjects() {
     setLoadingProjects(true);
@@ -699,6 +736,7 @@ export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
           <span style={{ fontSize: 12, color: "#CBD5E1", fontWeight: 800 }}>진행 프로젝트 선택(필수)</span>
           <select
             value={project?.id ?? ""}
+            disabled={mode === "update"}
             onChange={(e) => {
               const id = Number(e.target.value || 0);
               const found = projectOptions.find((p) => p.id === id) || null;
@@ -824,7 +862,6 @@ export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
                     소계: <span style={{ color: "#F8FAFC", fontWeight: 900 }}>{money(sec.lines.reduce((a, b) => a + Number(b.amount || 0), 0))}</span>
                   </div>
                   {sec.section_type === "MATERIAL" ? (
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <button
                       type="button"
                       disabled={saving}
@@ -843,26 +880,6 @@ export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
                     >
                       + 제품 추가
                     </button>
-
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => addLine(sec.id)}
-                      style={{
-                        fontSize: 12,
-                        padding: "8px 10px",
-                        borderRadius: 10,
-                        border: "1px solid #334155",
-                        background: "rgba(15,23,42,0.35)",
-                        color: "#F8FAFC",
-                        fontWeight: 900,
-                        cursor: "pointer",
-                        opacity: saving ? 0.6 : 1,
-                      }}
-                    >
-                      + 라인 추가
-                    </button>
-                    </div>
                   ) : (
                     <button
                       type="button"
@@ -1132,7 +1149,7 @@ export default function EstimateRegisterModal({ saving, onSubmit }: Props) {
             opacity: saving ? 0.6 : 1,
           }}
         >
-          {saving ? "저장중..." : "저장(신규 견적서 생성)"}
+          {saving ? "저장중..." : (submitLabel || (mode === "update" ? "수정 저장(신규 버전 생성)" : "저장(신규 견적서 생성)"))}
         </button>
       </div>
 
