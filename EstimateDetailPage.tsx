@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "../../lib/auth";
 import { http } from "../../api/http";
 
 type SectionType = "MATERIAL" | "LABOR" | "EXPENSE" | "OVERHEAD" | "PROFIT" | "MANUAL";
@@ -73,14 +72,6 @@ function readPrevChain(id: number): any[] {
 export default function EstimateDetailPage() {
   const { estimateId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth() as any;
-  const roleId: number | null = (user as any)?.role_id ?? null;
-  const roleName: string = String((user as any)?.role ?? (user as any)?.role_name ?? (user as any)?.roleName ?? "").toLowerCase();
-  const canViewPrev = Boolean(user) && (
-    [1, 2, 3].includes(Number(roleId)) ||
-    ["admin", "administrator", "manager", "operator", "employee", "staff", "company"].includes(roleName) ||
-    ["관리자", "운영자", "회사직원", "직원"].includes(String((user as any)?.role_name ?? (user as any)?.roleName ?? ""))
-  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +101,12 @@ export default function EstimateDetailPage() {
 
         setData(res.data);
         // ✅ 상세 로드 후, 해당 id에 매핑된 구버전 체인 읽기
-        setPrevChain(readPrevChain(id));
+        try {
+          const h = await http.get(`/estimates/${id}/history-details`, { params: { limit: 10 } });
+          setPrevChain(Array.isArray(h.data) ? h.data : []);
+        } catch {
+          setPrevChain([]);
+        }
       } catch (e: any) {
         if (!mounted) return;
         const status = e?.response?.status;
@@ -283,7 +279,7 @@ export default function EstimateDetailPage() {
             )}
 
             {/* ✅ 이전 견적서(최근 10개) – 하단 표시 */}
-            {canViewPrev && prevChain.length > 0 && (
+            {prevChain.length > 0 && (
               <div style={{ marginTop: 18, paddingTop: 12, borderTop: "1px solid #1F2937" }}>
                 <div
                   style={{
