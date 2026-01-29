@@ -168,25 +168,6 @@ function ProjectDetailPage() {
   const { projectId } = useParams();
 
   const pid = useMemo(() => Number(projectId || 0), [projectId]);
-  // ✅ 프로젝트 상세: "견적서 보기" → 해당 프로젝트의 견적서 상세로 이동 (1프로젝트=1견적)
-  const goToEstimate = async () => {
-    if (!pid) return;
-    try {
-      const res: any = await api("/api/estimates");
-      const data: any = res?.data ?? res;
-      const list: any[] = Array.isArray(data) ? data : data?.items ?? data?.rows ?? [];
-      const found = list.find((x: any) => Number(x?.project_id) === Number(pid));
-      if (!found?.id) {
-        alert("해당 프로젝트의 견적서가 없습니다.");
-        return;
-      }
-      nav(`/estimates/${found.id}`);
-    } catch (e: any) {
-      console.error(e);
-      alert("견적서 조회에 실패했습니다.");
-    }
-  };
-
   const [adminAckAt, setAdminAckAt] = useState<number>(0);
 
   const roleId: number | null = (user as any)?.role_id ?? null;
@@ -913,6 +894,27 @@ async function saveAdminInfo() {
     return Math.round(s * 10) / 10; // 소수 첫째자리
   }
 
+  
+  async function syncEstimateBusinessState(target: "DONE" | "CANCELED" | "ONGOING") {
+    try {
+      // 1프로젝트=1견적: project_id로 해당 견적서 id 찾기
+      const res = await api(`/api/estimates`);
+      const data: any = (res as any)?.data ?? res;
+      const list: any[] = Array.isArray(data) ? data : data?.items ?? data?.rows ?? [];
+      const found = list.find((x: any) => Number(x?.project_id) === Number(pid));
+      const eid = Number(found?.id || 0);
+      if (!eid) return;
+      // business_state 변경
+      await api(`/api/estimates/${eid}/business-state`, {
+        method: "POST",
+        body: JSON.stringify({ business_state: target }),
+      });
+    } catch (e) {
+      // 조용히 무시 (프로젝트 완료는 성공해야 하므로 견적 동기화 실패는 알림 없이)
+      console.error(e);
+    }
+  }
+
   async function submitComplete() {
     if (!pid) return;
     if (!canChangeStatus) return;
@@ -944,6 +946,7 @@ async function saveAdminInfo() {
           })),
         }),
       });
+      await syncEstimateBusinessState("DONE");
       setShowComplete(false);      // ✅ 상세페이지에 결과를 표기해야 하므로 목록 이동 대신 재조회
       setSelectedEmpIds([]);
       setScores({});
@@ -1055,7 +1058,7 @@ async function saveAdminInfo() {
             </button>
           )}
           {detail && (
-            <button className="btn" onClick={goToEstimate}>
+            <button className="btn" onClick={() => nav(`/quotes?project_id=${pid}`)}>
               견적서 보기
             </button>
           )}
