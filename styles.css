@@ -1,0 +1,250 @@
+:root{
+  --bg:#0b0f14;
+  --panel:#101723;
+  --panel2:#0f1620;
+  --text:#e8eef6;
+  --muted:#a9b5c5;
+  --line:#223044;
+  --accent:#6aa7ff;
+  --danger:#ff6a6a;
+  --ok:#5ae08f;
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --radius: 14px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Apple SD Gothic Neo, Malgun Gothic, sans-serif;
+  background: radial-gradient(1200px 600px at 20% 10%, rgba(106,167,255,.14), transparent 55%),
+              radial-gradient(900px 500px at 90% 20%, rgba(90,224,143,.10), transparent 50%),
+              var(--bg);
+  color:var(--text);
+}
+
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+
+.container{
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.hstack{display:flex;align-items:center;gap:10px}
+.vstack{display:flex;flex-direction:column;gap:10px}
+
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  color: var(--muted);
+  font-size: 12px;
+  /* 펄스 점 색(상태 배지별로 override) */
+  --pulse: rgba(90,224,143,.95);
+  --pulseShadow: rgba(90,224,143,.55);
+}
+
+/* 오늘 근무현황(닫힌 상태) 상태 배지: 사무실/외근/월차/반차 */
+.badgeOffice{ background: rgba(106,167,255,.16); border-color: rgba(106,167,255,.45); color: var(--text); --pulse: rgba(106,167,255,.95); --pulseShadow: rgba(106,167,255,.55); }
+.badgeOutside{ background: rgba(255,191,106,.16); border-color: rgba(255,191,106,.45); color: var(--text); --pulse: rgba(255,191,106,.95); --pulseShadow: rgba(255,191,106,.55); }
+.badgeLeave{ background: rgba(178,106,255,.16); border-color: rgba(178,106,255,.45); color: var(--text); --pulse: rgba(178,106,255,.95); --pulseShadow: rgba(178,106,255,.55); }
+.badgeHalfLeave{ background: rgba(255,106,198,.16); border-color: rgba(255,106,198,.45); color: var(--text); --pulse: rgba(255,106,198,.95); --pulseShadow: rgba(255,106,198,.55); }
+.badgeNotStarted{ background: rgba(169,181,197,.10); border-color: rgba(169,181,197,.28); color: var(--text); --pulse: rgba(169,181,197,.90); --pulseShadow: rgba(169,181,197,.45); }
+.badgeCheckedOut{ background: rgba(169,181,197,.10); border-color: rgba(169,181,197,.28); color: var(--text); --pulse: rgba(169,181,197,.90); --pulseShadow: rgba(169,181,197,.45); }
+.badgeUnknown{ opacity: .85; }
+.badgeActive{ filter: brightness(1.08); }
+
+/* 세션 상세 배지(사무실/외근/월차/반차) */
+.sessTag{
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+}
+.sessTagOffice{ background: rgba(106,167,255,.18); border-color: rgba(106,167,255,.35); }
+.sessTagOutside{ background: rgba(255,191,106,.18); border-color: rgba(255,191,106,.35); }
+.sessTagLeave{ background: rgba(178,106,255,.18); border-color: rgba(178,106,255,.35); }
+.sessTagHalfLeave{ background: rgba(255,106,198,.18); border-color: rgba(255,106,198,.35); }
+.sessTagRunning{ background: rgba(90,224,143,.16); border-color: rgba(90,224,143,.35); }
+.sessTagUnknown{ opacity: .85; }
+
+/* 근무현황 강조 */
+.rowWorking{
+  background: linear-gradient(90deg, rgba(90,224,143,.18), rgba(90,224,143,.06));
+  border-left: 4px solid rgba(90,224,143,.70);
+}
+.rowOff{
+  opacity: .72;
+}
+.dotPulse{
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pulse);
+  box-shadow: 0 0 0 0 var(--pulseShadow);
+  animation: pulseOk 1.25s infinite;
+}
+@keyframes pulseOk{
+  0%{box-shadow:0 0 0 0 var(--pulseShadow)}
+  70%{box-shadow:0 0 0 10px rgba(255,255,255,0)}
+  100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}
+}
+
+.btn{
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor:pointer;
+}
+.btn:hover{border-color: rgba(255,255,255,.22)}
+.btn.primary{
+  border-color: rgba(106,167,255,.45);
+  background: rgba(106,167,255,.16);
+}
+.btn.danger{
+  border-color: rgba(255,106,106,.45);
+  background: rgba(255,106,106,.14);
+}
+
+.input{
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  color: var(--text);
+}
+.input:focus{outline:2px solid rgba(106,167,255,.28);border-color: rgba(106,167,255,.45)}
+
+.small{font-size:12px;color:var(--muted)}
+.h1{font-size:24px;margin:0}
+.h2{font-size:18px;margin:0}
+.hr{height:1px;background:rgba(255,255,255,.08);margin:14px 0}
+
+.shell{
+  display:grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar{
+  padding: 18px;
+  border-right: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.16);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.sideItem{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  color: var(--muted);
+}
+.sideItem:hover{background: rgba(255,255,255,.04); color: var(--text)}
+.sideItem.active{background: rgba(106,167,255,.14); border-color: rgba(106,167,255,.24); color: var(--text)}
+
+.topbar{
+  display:none;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  position: sticky;
+  top:0;
+  background: rgba(0,0,0,.18);
+  backdrop-filter: blur(8px);
+  z-index: 40;
+}
+
+.main{
+  padding: 18px;
+}
+
+.drawerBackdrop{
+  position: fixed; inset:0;
+  background: rgba(0,0,0,.55);
+  z-index: 50;
+}
+
+.drawer{
+  position: fixed; top:0; left:0; bottom:0;
+  width: 78%;
+  max-width: 320px;
+  background: rgba(10,14,20,.98);
+  border-right: 1px solid rgba(255,255,255,.10);
+  padding: 18px;
+  z-index: 60;
+}
+
+@media (max-width: 900px){
+  .shell{grid-template-columns: 1fr;}
+  .sidebar{display:none}
+  .topbar{display:flex; align-items:center; justify-content:space-between}
+}
+
+/* datetime-local 캘린더 아이콘 흰색 처리 */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 1;
+}
+
+/* 아이콘이 다시 검게 보이는 것 방지 */
+input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+/* ===== 캘린더 아이콘을 '확실히' 눈에 띄게(노란색) 표시 =====
+   - 네이티브 indicator 색이 바뀌지 않는 브라우저/테마가 있어
+     indicator는 투명(클릭 영역 유지)으로 두고,
+     입력창 배경에 커스텀 아이콘(SVG)을 그려서 항상 보이게 합니다.
+   - 바탕이 검은색일 때 잘 보이도록 노란색(#FFD400) 사용
+*/
+.input[type="datetime-local"],
+.input[type="date"]{
+  padding-right: 44px;                 /* 아이콘 공간 확보 */
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%2523FFD400%22%3E%0A%3Cpath%20d%3D%22M7%202a1%201%200%200%201%201%201v1h8V3a1%201%200%201%201%202%200v1h1.5A2.5%202.5%200%200%201%2022%206.5v14A2.5%202.5%200%200%201%2019.5%2023h-15A2.5%202.5%200%200%201%202%2020.5v-14A2.5%202.5%200%200%201%204.5%204H6V3a1%201%200%200%201%201-1Zm12.5%206h-15a.5.5%200%200%200-.5.5v12a.5.5%200%200%200%20.5.5h15a.5.5%200%200%200%20.5-.5v-12a.5.5%200%200%200-.5-.5ZM7%2011h2v2H7v-2Zm4%200h2v2h-2v-2Zm4%200h2v2h-2v-2ZM7%2015h2v2H7v-2Zm4%200h2v2h-2v-2Zm4%200h2v2h-2v-2Z%22/%3E%0A%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px 18px;
+}
+/* 네이티브 아이콘은 투명 처리 (클릭 영역은 유지) */
+.input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.input[type="date"]::-webkit-calendar-picker-indicator{
+  opacity: 0 !important;
+  cursor: pointer;
+}
+
+/* ===== [FIX] datetime-local 캘린더 아이콘 색이 안 바뀌는 문제의 근본 원인:
+   - 이전 data URI에서 '#'이 '%2523'로 2중 인코딩되어 fill 색상이 무효 → 아이콘이 '검은색'으로 렌더링됨.
+   - 아래 규칙은 올바르게 인코딩된(단 1회 %23) SVG 아이콘을 강제로 배경에 표시합니다.
+   - 네이티브 indicator는 투명 처리(클릭 영역 유지).
+*/
+input[type="datetime-local"], input[type="date"] {
+  padding-right: 46px !important;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2220%22%20height=%2220%22%20viewBox=%220%200%2024%2024%22%20fill=%22%2300FF7F%22%3E%0A%3Cpath%20d=%22M7%202a1%201%200%200%201%201%201v1h8V3a1%201%200%201%201%202%200v1h1.5A2.5%202.5%200%200%201%2022%206.5v14A2.5%202.5%200%200%201%2019.5%2023h-15A2.5%202.5%200%200%201%202%2020.5v-14A2.5%202.5%200%200%201%204.5%204H6V3a1%201%200%200%201%201-1Zm12.5%206h-15a.5.5%200%200%200-.5.5v12a.5.5%200%200%200%20.5.5h15a.5.5%200%200%200%20.5-.5v-12a.5.5%200%200%200-.5-.5ZM7%2011h2v2H7v-2Zm4%200h2v2h-2v-2Zm4%200h2v2h-2v-2ZM7%2015h2v2H7v-2Zm4%200h2v2h-2v-2Zm4%200h2v2h-2v-2Z%22/%3E%0A%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 18px 18px !important;
+}
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0 !important;
+  cursor: pointer !important;
+}

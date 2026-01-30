@@ -19,6 +19,7 @@ import ProductsPage from "./pages/Products/ProductsPage";
 import EstimatesPage from "./pages/Estimates/EstimatesPage";
 import EstimateDetailPage from "./pages/Estimates/EstimateDetailPage";
 import EstimateRegisterPage from "./pages/Estimates/EstimateRegisterPage";
+import EstimateEditPage from "./pages/Estimates/EstimateEditPage";
 
 
 // Projects
@@ -101,6 +102,8 @@ export default function App() {
 		<Route path="estimates" element={<EstimatesPage />} />
 		<Route path="estimates/new" element={<EstimateRegisterPage />} />
         <Route path="estimates/:estimateId" element={<EstimateDetailPage />} />
+		<Route path="/estimates/:id/edit" element={<EstimateEditPage />} />
+
 
 
         <Route path="materials" element={<EmptyPage />} />
